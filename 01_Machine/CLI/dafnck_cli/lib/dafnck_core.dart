@@ -15,8 +15,21 @@ class DafnckCore {
     final file = File(path);
     if (!file.existsSync()) return {};
     try {
-      return jsonDecode(file.readAsStringSync());
+  Map<String, dynamic> readJson(String path) {
+    final file = File(path);
+    if (!file.existsSync()) {
+      print('Warning: File not found at $path');
+      return {};
+    }
+
+    try {
+      final content = file.readAsStringSync();
+      if (content.trim().isEmpty) {
+        return {};
+      }
+      return jsonDecode(content);
     } catch (e) {
+      print('Error reading or parsing JSON from $path: $e');
       return {};
     }
   }
