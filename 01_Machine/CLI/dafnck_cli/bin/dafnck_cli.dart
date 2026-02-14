@@ -8,7 +8,10 @@ void main(List<String> arguments) {
     ..addCommand('init')
     ..addCommand('status')
     ..addCommand('next')
-    ..addCommand('chat');
+    ..addCommand('chat')
+    ..addCommand('list-agents')
+    ..addCommand('tasks')
+    ..addCommand('validate');
 
   ArgResults results;
   try {
@@ -20,8 +23,6 @@ void main(List<String> arguments) {
   }
 
   final rootPath = p.absolute(Directory.current.path);
-  // In some environments, we might be inside 01_Machine/CLI/dafnck_cli
-  // We want the root of the DafnckMachine
   String effectiveRoot = rootPath;
   if (p.basename(effectiveRoot) == 'dafnck_cli') {
     effectiveRoot = p.dirname(p.dirname(p.dirname(effectiveRoot)));
@@ -48,63 +49,81 @@ void main(List<String> arguments) {
     case 'chat':
       handleChat(command);
       break;
+    case 'list-agents':
+      handleListAgents(core);
+      break;
+    case 'tasks':
+      handleTasks(core);
+      break;
+    case 'validate':
+      handleValidate(core, effectiveRoot);
+      break;
     default:
       printUsage(parser);
   }
 }
 
 void printUsage(ArgParser parser) {
-  print('DafnckMachine CLI Agent');
+  print('🚀 DafnckMachine CLI Agent');
   print('Usage: dafnck_cli <command> [arguments]');
   print('Commands:');
   for (final cmd in parser.commands.keys) {
-    print('  $cmd');
+    print('  ${cmd.padRight(12)} - ${getCommandDescription(cmd)}');
+  }
+}
+
+String getCommandDescription(String command) {
+  switch (command) {
+    case 'init': return 'Initialize or verify project structure';
+    case 'status': return 'Show current workflow and agent status';
+    case 'next': return 'Advance to the next workflow step';
+    case 'chat': return 'Start a chat session with an agent';
+    case 'list-agents': return 'List all registered agents';
+    case 'tasks': return 'List tasks and artifacts for the current step';
+    case 'validate': return 'Run system validation checks';
+    default: return '';
   }
 }
 
 void handleInit(DafnckCore core, String root) {
-  print('🚀 Initializing DafnckMachine Check...');
+  print('🏗️  DafnckMachine Structure Check');
+  print('===============================');
   final dirs = ['01_Machine', '02_Vision', '03_Project'];
   bool allExist = true;
   for (final dir in dirs) {
     final d = Directory(p.join(root, dir));
     if (d.existsSync()) {
-      print('✅ $dir exists');
+      print('✅ ${dir.padRight(12)} FOUND');
     } else {
-      print('❌ $dir missing');
+      print('❌ ${dir.padRight(12)} MISSING');
       allExist = false;
     }
   }
 
   if (allExist) {
-    print('🎉 DafnckMachine structure is valid!');
+    print('\n🎉 DafnckMachine structure is valid and ready!');
   } else {
-    print('⚠️  Some directories are missing. Please check your installation.');
+    print('\n⚠️  Some directories are missing. Please check your installation.');
   }
 }
 
 void handleStatus(DafnckCore core) {
-  final state = core.getState();
   final dna = core.getDna();
   final step = core.getStep();
-
   final workflowState = dna['workflow_state'] ?? {};
 
   print('🧠 DAFNCK MACHINE - STATUS');
   print('========================');
-  print('');
-  print('📍 Étape : ${workflowState['current_step'] ?? 'Unknown'}');
-  print('🤖 Agent : ${workflowState['current_agent'] ?? step['currentAgent'] ?? 'Unknown'}');
-  print('📁 Phase : ${workflowState['current_phase'] ?? 'Unknown'}');
+  print('📍 Step      : ${workflowState['current_step'] ?? 'Unknown'}');
+  print('🤖 Agent     : ${workflowState['current_agent'] ?? step['currentAgent'] ?? 'Unknown'}');
+  print('📁 Phase     : ${workflowState['current_phase'] ?? 'Unknown'}');
 
   final progress = workflowState['progress'] ?? {};
-  print('📈 Progrès : ${progress['percentage'] ?? 0}% (${progress['completed_steps'] ?? 0}/${progress['total_steps'] ?? 0})');
-  print('');
-  print('🔙 Précédente : ${workflowState['previous_step'] ?? 'None'}');
-  print('🔜 Suivante : ${workflowState['next_step'] ?? 'None'}');
-  print('');
-  print('⚡ Tâche actuelle : ${workflowState['current_task'] ?? 'None'}');
-  print('');
+  print('📈 Progress  : ${progress['percentage'] ?? 0}% (${progress['completed_steps'] ?? 0}/${progress['total_steps'] ?? 0})');
+  print('------------------------');
+  print('🔙 Previous  : ${workflowState['previous_step'] ?? 'None'}');
+  print('🔜 Next      : ${workflowState['next_step'] ?? 'None'}');
+  print('⚡ Task      : ${workflowState['current_task'] ?? 'None'}');
   print('========================');
 }
 
@@ -115,18 +134,16 @@ void handleNext(DafnckCore core) {
   final nextStep = workflowState['next_step'];
 
   if (nextStep == null || nextStep == 'null') {
-    print('✅ No more steps in the workflow.');
+    print('✨ Workflow is already complete!');
     return;
   }
 
-  print('⏭️ Advancing to next step: $nextStep');
+  print('⏭️  Advancing from $currentStep to $nextStep...');
 
-  // Logic to advance step (simplified)
   workflowState['previous_step'] = currentStep;
   workflowState['current_step'] = nextStep;
   workflowState['current_task'] = nextStep;
 
-  // Find next next step from step_definitions
   final defs = dna['step_definitions'] ?? {};
   final nextDef = defs[nextStep] ?? {};
   workflowState['next_step'] = nextDef['next_task'];
@@ -138,23 +155,104 @@ void handleNext(DafnckCore core) {
 
   core.updateDna(dna);
 
-  // Also update Step.json
   final step = core.getStep();
   step['currentWorkflowStep'] = nextStep;
   step['currentPhase'] = nextDef['phase'];
   step['currentAgent'] = nextDef['agent'];
   core.updateStep(step);
 
-  print('✅ Successfully moved to $nextStep');
+  print('✅ Successfully transitioned to $nextStep');
 }
 
 void handleChat(ArgResults command) {
   if (command.arguments.isEmpty) {
-    print('Usage: dafnck_cli chat <agent-name>');
+    print('❌ Usage: dafnck_cli chat <agent-name>');
     return;
   }
   final agent = command.arguments.first;
-  print('💬 Starting chat session with $agent...');
-  print('🤖 $agent: Hello! I am the $agent. How can I assist you today?');
-  print('(Simulation: Chat session ended)');
+  print('💬 Opening secure channel to @$agent...');
+  print('🤖 @$agent: System ready. Awaiting your instructions.');
+  print('\n(Mock: Chat session active. Type "exit" to close)');
+}
+
+void handleListAgents(DafnckCore core) {
+  final dna = core.getDna();
+  final registry = dna['agentRegistry'] as List?;
+
+  print('🤖 Registered Agents Registry');
+  print('============================');
+  if (registry == null) {
+    print('No agents found in registry.');
+    return;
+  }
+
+  for (final agent in registry) {
+    final name = agent['agentName'];
+    final phases = (agent['phases'] as List?)?.join(', ') ?? 'None';
+    print('• @${name.padRight(35)} [Phases: $phases]');
+  }
+  print('============================');
+  print('Total Agents: ${registry.length}');
+}
+
+void handleTasks(DafnckCore core) {
+  final artifacts = core.getOutputArtifacts();
+  final tasks = core.getDetailedTasks();
+
+  print('📋 Current Step Action Plan');
+  print('==========================');
+
+  if (tasks.isNotEmpty) {
+    print('⚡ Tasks:');
+    for (final task in tasks) {
+      print('  - $task');
+    }
+  } else {
+    print('⚡ No detailed tasks found for this step.');
+  }
+
+  print('\n📦 Required Output Artifacts:');
+  if (artifacts.isNotEmpty) {
+    for (final artifact in artifacts) {
+      print('  $artifact');
+    }
+  } else {
+    print('  No specific artifacts listed.');
+  }
+  print('==========================');
+}
+
+void handleValidate(DafnckCore core, String root) {
+  print('🔍 Running DafnckMachine System Validation...');
+
+  // 1. Structure check
+  final dirs = ['01_Machine', '02_Vision', '03_Project'];
+  for (final dir in dirs) {
+    if (!Directory(p.join(root, dir)).existsSync()) {
+      print('❌ Missing directory: $dir');
+    }
+  }
+
+  // 2. DNA check
+  final dna = core.getDna();
+  if (dna.isEmpty) {
+    print('❌ DNA.json is missing or invalid.');
+  } else {
+    print('✅ DNA.json loaded');
+    if (dna['agentRegistry'] == null) {
+      print('⚠️  agentRegistry missing in DNA.json');
+    }
+  }
+
+  // 3. Step check
+  final step = core.getStep();
+  if (step.isEmpty) {
+    print('❌ Step.json is missing or invalid.');
+  } else {
+    print('✅ Step.json loaded');
+    print('📊 System Status: ${step['systemStatus'] ?? 'Unknown'}');
+  }
+
+  print('\n✅ Validation sequence complete.');
+  print('Hint: For deep agent validation, run the python unified_agent_validator.py');
 }

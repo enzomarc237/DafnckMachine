@@ -15,6 +15,7 @@ void main() {
 
       // Create required structure
       Directory(p.join(tempDir.path, '01_Machine', '03_Brain')).createSync(recursive: true);
+      Directory(p.join(tempDir.path, '01_Machine', '01_Workflow')).createSync(recursive: true);
 
       // Initial DNA
       File(core.dnaPath).writeAsStringSync(jsonEncode({
@@ -24,10 +25,27 @@ void main() {
           'progress': {'percentage': 0, 'completed_steps': 0, 'total_steps': 2}
         },
         'step_definitions': {
-          'S1': {'next_task': 'S2', 'phase': 'P1', 'agent': 'A1'},
+          'S1': {
+            'next_task': 'S2',
+            'phase': 'P1',
+            'agent': 'A1',
+            'file_path': '01_Machine/01_Workflow/S1.md'
+          },
           'S2': {'next_task': null, 'phase': 'P1', 'agent': 'A2'}
         }
       }));
+
+      // Mock workflow file
+      File(p.join(tempDir.path, '01_Machine', '01_Workflow', 'S1.md')).writeAsStringSync('''
+# S1 Step
+
+## Output Artifacts Checklist
+- [ ] artifact1.json
+- [x] artifact2.md
+
+## Task-01
+### Subtask-01 - Description
+''');
 
       File(core.stepPath).writeAsStringSync(jsonEncode({
         'currentWorkflowStep': 'S1'
@@ -54,6 +72,18 @@ void main() {
 
       final updatedDna = core.getDna();
       expect(updatedDna['workflow_state']['current_step'], 'S2');
+    });
+
+    test('Get Output Artifacts', () {
+      final artifacts = core.getOutputArtifacts();
+      expect(artifacts.length, 2);
+      expect(artifacts[0], contains('artifact1.json'));
+    });
+
+    test('Get Detailed Tasks', () {
+      final tasks = core.getDetailedTasks();
+      expect(tasks.length, 2);
+      expect(tasks[1], contains('Subtask-01'));
     });
   });
 }
