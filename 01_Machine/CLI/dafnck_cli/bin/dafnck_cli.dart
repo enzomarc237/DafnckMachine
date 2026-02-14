@@ -109,21 +109,21 @@ void handleInit(DafnckCore core, String root) {
 
 void handleStatus(DafnckCore core) {
   final dna = core.getDna();
-  final step = core.getStep();
-  final workflowState = dna['workflow_state'] ?? {};
-
   print('🧠 DAFNCK MACHINE - STATUS');
   print('========================');
-  print('📍 Step      : ${workflowState['current_step'] ?? 'Unknown'}');
-  print('🤖 Agent     : ${workflowState['current_agent'] ?? step['currentAgent'] ?? 'Unknown'}');
-  print('📁 Phase     : ${workflowState['current_phase'] ?? 'Unknown'}');
+  print('');
+  print('📍 Step: ${workflowState['current_step'] ?? 'Unknown'}');
+  print('🤖 Agent: ${workflowState['current_agent'] ?? step['currentAgent'] ?? 'Unknown'}');
+  print('📁 Phase: ${workflowState['current_phase'] ?? 'Unknown'}');
 
   final progress = workflowState['progress'] ?? {};
-  print('📈 Progress  : ${progress['percentage'] ?? 0}% (${progress['completed_steps'] ?? 0}/${progress['total_steps'] ?? 0})');
-  print('------------------------');
-  print('🔙 Previous  : ${workflowState['previous_step'] ?? 'None'}');
-  print('🔜 Next      : ${workflowState['next_step'] ?? 'None'}');
-  print('⚡ Task      : ${workflowState['current_task'] ?? 'None'}');
+  print('📈 Progress: ${progress['percentage'] ?? 0}% (${progress['completed_steps'] ?? 0}/${progress['total_steps'] ?? 0})');
+  print('');
+  print('🔙 Previous: ${workflowState['previous_step'] ?? 'None'}');
+  print('🔜 Next: ${workflowState['next_step'] ?? 'None'}');
+  print('');
+  print('⚡ Current Task: ${workflowState['current_task'] ?? 'None'}');
+  print('');
   print('========================');
 }
 
